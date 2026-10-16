@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Recent DP Interview Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a working ledger. Summary strip, sticky filter bar, then rows grouped by DP pattern; rows collapse to stacked cards on phones. */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --line:#dfe3ea; --fg:#18202c; --muted:#5b6575;
+  --accent:#2747d6; --accent-soft:#e6ebfd;
+  --cross:#0f7a4a; --cross-soft:#dcf3e7; --lc30:#2747d6; --lc30-soft:#e6ebfd;
+  --lc3m:#8a5a00; --lc3m-soft:#fbefd6; --rep:#7a2fb3; --rep-soft:#f1e5fa;
+  --easy:#0f7a4a; --med:#9a6200; --hard:#b42318;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10141b; --surface:#171c25; --line:#2a313d; --fg:#e7ebf2; --muted:#9aa4b4;
+  --accent:#8ea2ff; --accent-soft:#1f2a52;
+  --cross:#5fd39b; --cross-soft:#123826; --lc30:#8ea2ff; --lc30-soft:#1f2a52;
+  --lc3m:#f0c063; --lc3m-soft:#3a2d10; --rep:#d3a4f5; --rep-soft:#33204a;
+  --easy:#5fd39b; --med:#f0c063; --hard:#ff8a7d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10141b; --surface:#171c25; --line:#2a313d; --fg:#e7ebf2; --muted:#9aa4b4;
+  --accent:#8ea2ff; --accent-soft:#1f2a52;
+  --cross:#5fd39b; --cross-soft:#123826; --lc30:#8ea2ff; --lc30-soft:#1f2a52;
+  --lc3m:#f0c063; --lc3m-soft:#3a2d10; --rep:#d3a4f5; --rep-soft:#33204a;
+  --easy:#5fd39b; --med:#f0c063; --hard:#ff8a7d; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:flex;flex-direction:column;gap:22px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(1.7rem,3.6vw,2.4rem);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:1.25rem;margin:0;text-wrap:balance}
+p{margin:0}
+.lede{color:var(--muted);max-width:68ch}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--mono);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.85rem}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.88rem;color:var(--muted)}
+.legend div{display:flex;gap:8px;align-items:baseline;max-width:52ch}
+.chip{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:5px;white-space:nowrap;font-weight:600}
+.v-cross{background:var(--cross-soft);color:var(--cross)}
+.v-lc30{background:var(--lc30-soft);color:var(--lc30)}
+.v-lc3m{background:var(--lc3m-soft);color:var(--lc3m)}
+.v-rep{background:var(--rep-soft);color:var(--rep)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.tab{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.tab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.controls{display:flex;flex-wrap:wrap;gap:8px}
+.controls input,.controls select{font:inherit;font-size:.9rem;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0}
+.controls input{flex:1 1 200px}
+.controls label{display:flex;align-items:center;gap:6px;font-size:.88rem;color:var(--muted)}
+section.group{display:flex;flex-direction:column;gap:10px}
+.ghead{display:flex;flex-direction:column;gap:4px}
+.ghead p{color:var(--muted);font-size:.92rem;max-width:80ch}
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:28px minmax(0,2.1fr) 72px minmax(0,1.5fr) minmax(0,2.4fr);gap:12px;padding:12px 14px;border-top:1px solid var(--line);align-items:start}
+.row:first-child{border-top:0}
+.row.head{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--bg);padding-block:8px}
+.row.done .title a{text-decoration:line-through;opacity:.6}
+.row input[type=checkbox]{width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent)}
+.title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.title a{font-weight:700;text-decoration:none;color:var(--fg)}
+.title a:hover{color:var(--accent);text-decoration:underline}
+.num{font-family:var(--mono);color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums;margin-right:4px}
+.note{font-size:.84rem;color:var(--muted)}
+.diff{font-family:var(--mono);font-size:.78rem;font-weight:600}
+.d-Easy{color:var(--easy)} .d-Medium{color:var(--med)} .d-Hard{color:var(--hard)}
+.cos{font-size:.88rem;min-width:0}
+.ev{display:flex;flex-direction:column;gap:6px;font-size:.86rem;min-width:0}
+.ev ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
+.prem{font-family:var(--mono);font-size:.68rem;color:var(--lc3m);border:1px solid currentColor;border-radius:4px;padding:0 4px;margin-left:4px}
+.empty{padding:18px;color:var(--muted)}
+.method{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px;font-size:.92rem}
+.method ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:90ch}
+@media (max-width:760px){
+  .row.head{display:none}
+  .row{grid-template-columns:24px minmax(0,1fr);gap:6px 10px}
+  .row>.diff,.row>.cos,.row>.ev{grid-column:2}
+  .diff::before{content:"Difficulty · ";color:var(--muted);font-weight:400}
+  .cos::before{content:"Companies · ";color:var(--muted)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>Recent DP Interview Ledger</h1>
+    <p class="lede">DP problems reported at high-paying companies between 16 Jul and 16 Oct 2026. They are grouped into your four buckets: 1D DP, 2D DP, variable base with fixed end, and variable base with variable end. Grid problems with a fixed start and fixed end have their own group. Every row shows its evidence. Tick a box once you've solved the problem; the tick is saved in this browser.</p>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="legend">
+    <div><span class="chip v-cross">Cross-verified</span> In LeetCode's company frequency data and also in a separate, dated interview write-up.</div>
+    <div><span class="chip v-lc30">LC 30-day</span> In the company's "last 30 days" LeetCode list (17 Jul – 16 Aug 2026 snapshot).</div>
+    <div><span class="chip v-rep">Interview report</span> Named in one dated interview write-up inside the window.</div>
+    <div><span class="chip v-lc3m">LC 3-month</span> In the 16 May – 16 Aug list only. That window starts before yours, so treat these as supporting evidence.</div>
+  </div>
+
+  <div class="bar">
+    <div class="tabs" id="tabs" role="group" aria-label="DP pattern"></div>
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search problem or company…" aria-label="Search">
+      <select id="lvl" aria-label="Evidence level">
+        <option value="">All evidence levels</option>
+        <option value="cross">Cross-verified only</option>
+        <option value="strong">Cross-verified + LC 30-day + report</option>
+      </select>
+      <select id="co" aria-label="Company"><option value="">All companies</option></select>
+      <label for="hide"><input id="hide" type="checkbox"> Hide solved</label>
+    </div>
+  </div>
+
+  <main id="groups" style="display:flex;flex-direction:column;gap:28px"></main>
+
+  <section class="method">
+    <h2>How this was checked</h2>
+    <ul>
+      <li><b>LeetCode company frequency.</b> This is LeetCode Premium's company-tag data, as mirrored in <a href="https://github.com/liquidslr/leetcode-company-wise-problems" target="_blank" rel="noopener">liquidslr/leetcode-company-wise-problems</a>. The mirror was last updated 16 Aug 2026. Its "30 days" list therefore covers 17 Jul – 16 Aug and falls inside your window. Only problems that LeetCode tags as Dynamic Programming are included, and only for companies in or above the ₹50 LPA – ₹1 Cr band. Service companies are excluded.</li>
+      <li><b>Dated interview write-ups.</b> These come from LeetCode Discuss posts and PracHub, a site of candidate-reported questions that each carry a date. A PracHub problem is linked to the LeetCode problem with the same statement. Where the reported question is a variant, the row says so.</li>
+      <li><b>Reddit, X and LinkedIn.</b> I searched for each top problem on all three. Search results there aren't filterable by date or question, so nothing came back that I could pin to a specific problem and date. No row relies on those platforms. A problem you also see in recent posts there is extra signal.</li>
+      <li><b>Frequency is not a guarantee.</b> A company tag means candidates reported the problem in that window. It doesn't mean every interviewer asks it.</li>
+      <li><b>DP was asked but not named.</b> Zomato SDE-1, Aug 2026: a hard DP problem in round 2 (<a href="https://leetcode.com/discuss/post/8434690/" target="_blank" rel="noopener">post</a>). Google L4 India OA, Aug 2026: a hard DP problem (<a href="https://leetcode.com/discuss/post/8551877/" target="_blank" rel="noopener">post</a>). Gameberry Labs SDE-1, Jun–Jul 2026: a recursion-to-DP OA problem (<a href="https://leetcode.com/discuss/post/8378265/gameberry-labs-sde-1-interview-experienc-6dz4/" target="_blank" rel="noopener">post</a>).</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const LC = s => "https://leetcode.com/problems/" + s + "/";
+const PH = s => "https://prachub.com/coding-questions/" + s;
+const PHI = s => "https://prachub.com/interview-questions/" + s;
+const LD = {
+  amzSde1: ["LeetCode Discuss · Amazon SDE-1, offer 21 Sep 2026", "https://leetcode.com/discuss/post/8542365/amazon-sde-1-interview-experience-tcs-am-8dyr/"],
+  amzPV: ["LeetCode Discuss · Amazon SDE-2, Prime Video, Bangalore (2026)", "https://leetcode.com/discuss/post/8420230/amazon-sde-2-interview-experience-2026-e-t1g8/"],
+  amzSde2Aug: ["LeetCode Discuss · Amazon SDE-II, DSA round 4 Aug 2026", "https://leetcode.com/discuss/post/8457154/amazon-sde-ii-interview-experience-2026-19lzv/"],
+};
+const GROUPS = [
+  {id:"1d", name:"1D DP", blurb:"One changing index: dp[i] depends on a few earlier states. This group includes take/skip, jump and partition-on-a-line problems, plus weighted interval scheduling."},
+  {id:"2d", name:"2D DP", blurb:"Two changing parameters. Covers two strings, knapsack (index × capacity), interval DP (i, j), game DP and small-state DP such as day × last colour or bitmasks."},
+  {id:"ff", name:"Grid · fixed base, fixed end", blurb:"One start cell and one target cell. Every path ends in the same place, so the answer sits in a single cell."},
+  {id:"vf", name:"Variable base → fixed end", blurb:"In tabulation, the base case is a whole row (every cell of the last row) and the answer is one fixed cell. Triangle and Cherry Pickup II are the standard examples. LeetCode has few problems of this shape, so this group is small."},
+  {id:"vv", name:"Variable base → variable end", blurb:"The path can start in any cell of the first row, or anywhere at all, and can end anywhere. The answer is the max or min over a full row or the whole grid. Falling-path and longest-line problems belong here."},
+  {id:"ot", name:"Other DP seen (tree / graph)", blurb:"These came up in the same data but don't fit your four buckets. They're included for completeness."},
+];
+// lvl: cross | lc30 | rep | lc3m
+const P = [
+ // ---------- 1D ----------
+ {g:"1d",n:198,t:"House Robber",s:"house-robber",d:"Medium",lvl:"cross",co:["Amazon","Google","Bloomberg"],
+  ev:[["LC 30-day: Google, Amazon, Bloomberg"],LD.amzSde1],note:"Amazon onsite round 2 asked House Robber variations."},
+ {g:"1d",n:740,t:"Delete and Earn",s:"delete-and-earn",d:"Medium",lvl:"cross",co:["Microsoft","Walmart Labs","Amazon","Google"],
+  ev:[["LC 30-day: Walmart Labs · 3-month: Amazon, Google, Microsoft"],["PracHub · Microsoft SWE, 25 Aug 2026",PH("maximize-points-by-deleting-values-and-their-neighbors")]],note:"Reduces to House Robber over value buckets."},
+ {g:"1d",n:139,t:"Word Break",s:"word-break",d:"Medium",lvl:"cross",co:["Amazon","Microsoft"],
+  ev:[["LC 30-day: Amazon"],["PracHub · Microsoft Applied Scientist, 27 Aug 2026 (insert spaces, i.e. Word Break II)",PH("insert-spaces-to-rebuild-a-sentence-from-dictionary-words")]],note:"Also practise 140 Word Break II for the 'return all sentences' version."},
+ {g:"1d",n:472,t:"Concatenated Words",s:"concatenated-words",d:"Hard",lvl:"cross",co:["Amazon"],
+  ev:[["LC 3-month: Amazon"],["PracHub · Amazon SWE, 1 Oct 2026",PH("find-all-words-formed-by-concatenating-two-or-more-shorter-words-in-the-list")]],note:"Word Break run per word, over a set of shorter words."},
+ {g:"1d",n:1235,t:"Maximum Profit in Job Scheduling",s:"maximum-profit-in-job-scheduling",d:"Hard",lvl:"cross",co:["Google","Amazon"],
+  ev:[["LC 3-month: Amazon"],["PracHub · Google SWE onsite, 17 Sep 2026",PH("choose-non-overlapping-weighted-jobs-to-maximize-total-profit")]],note:"Sort by end time, then dp[i] = max(skip, take + dp[last compatible]) with binary search."},
+ {g:"1d",n:null,t:"Longest Non-Decreasing Subarray After Replacing at Most One Element",s:"longest-non-decreasing-subarray-after-replacing-at-most-one-element",d:"Medium",lvl:"cross",co:["Google"],
+  ev:[["LC 3-month: Google"],["PracHub · Google SWE onsite, 26 Aug 2026",PH("longest-non-decreasing-subarray-after-one-replacement")]],note:"Prefix and suffix run lengths; try every replacement position."},
+ {g:"1d",n:2407,t:"Longest Increasing Subsequence II",s:"longest-increasing-subsequence-ii",d:"Hard",lvl:"cross",co:["Amazon","Google"],
+  ev:[["LC 3-month: Google · LIS (300) 3-month: Google, Amazon, Bloomberg, Microsoft"],LD.amzPV],note:"Amazon asked strictly increasing LIS with a max adjacent difference. That is exactly 2407. Warm up on 300 first."},
+ {g:"1d",n:70,t:"Climbing Stairs",s:"climbing-stairs",d:"Easy",lvl:"lc30",co:["Google","Amazon","Bloomberg","Meta","Intuit"],ev:[["LC 30-day: Google, Amazon, Bloomberg, Meta, Intuit"]]},
+ {g:"1d",n:322,t:"Coin Change",s:"coin-change",d:"Medium",lvl:"lc30",co:["Google","Meta","Microsoft"],ev:[["LC 30-day: Google, Meta, Microsoft"]],note:"Unbounded knapsack collapsed to 1D."},
+ {g:"1d",n:53,t:"Maximum Subarray",s:"maximum-subarray",d:"Medium",lvl:"lc30",co:["Amazon","Microsoft"],ev:[["LC 30-day: Amazon, Microsoft"]]},
+ {g:"1d",n:121,t:"Best Time to Buy and Sell Stock",s:"best-time-to-buy-and-sell-stock",d:"Easy",lvl:"lc30",co:["Google","Amazon","Bloomberg"],ev:[["LC 30-day: Google, Amazon, Bloomberg"]]},
+ {g:"1d",n:122,t:"Best Time to Buy and Sell Stock II",s:"best-time-to-buy-and-sell-stock-ii",d:"Medium",lvl:"lc30",co:["Google","Bloomberg"],ev:[["LC 30-day: Google, Bloomberg"]]},
+ {g:"1d",n:55,t:"Jump Game",s:"jump-game",d:"Medium",lvl:"lc30",co:["Amazon"],ev:[["LC 30-day: Amazon"]]},
+ {g:"1d",n:45,t:"Jump Game II",s:"jump-game-ii",d:"Medium",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"1d",n:91,t:"Decode Ways",s:"decode-ways",d:"Medium",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"1d",n:983,t:"Minimum Cost For Tickets",s:"minimum-cost-for-tickets",d:"Medium",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"1d",n:918,t:"Maximum Sum Circular Subarray",s:"maximum-sum-circular-subarray",d:"Medium",lvl:"lc30",co:["Amazon"],ev:[["LC 30-day: Amazon"]]},
+ {g:"1d",n:368,t:"Largest Divisible Subset",s:"largest-divisible-subset",d:"Medium",lvl:"lc30",co:["Amazon"],ev:[["LC 30-day: Amazon"]],note:"LIS-style DP with path reconstruction."},
+ {g:"1d",n:32,t:"Longest Valid Parentheses",s:"longest-valid-parentheses",d:"Hard",lvl:"lc30",co:["Amazon"],ev:[["LC 30-day: Amazon"]]},
+ {g:"1d",n:907,t:"Sum of Subarray Minimums",s:"sum-of-subarray-minimums",d:"Medium",lvl:"lc30",co:["Amazon"],ev:[["LC 30-day: Amazon"]],note:"Monotonic stack combined with DP."},
+ {g:"1d",n:871,t:"Minimum Number of Refueling Stops",s:"minimum-number-of-refueling-stops",d:"Hard",lvl:"lc30",co:["DE Shaw","Uber"],ev:[["LC 30-day: DE Shaw, Uber"]]},
+ {g:"1d",n:790,t:"Domino and Tromino Tiling",s:"domino-and-tromino-tiling",d:"Medium",lvl:"lc30",co:["Goldman Sachs"],ev:[["LC 30-day: Goldman Sachs"]]},
+ {g:"1d",n:2054,t:"Two Best Non-Overlapping Events",s:"two-best-non-overlapping-events",d:"Medium",lvl:"lc30",co:["Grammarly"],ev:[["LC 30-day: Grammarly"]]},
+ {g:"1d",n:1031,t:"Maximum Sum of Two Non-Overlapping Subarrays",s:"maximum-sum-of-two-non-overlapping-subarrays",d:"Medium",lvl:"lc30",co:["Sprinklr"],ev:[["LC 30-day: Sprinklr"]]},
+ {g:"1d",n:null,t:"Minimum Operations to Reduce an Integer to 0",s:"minimum-operations-to-reduce-an-integer-to-0",d:"Medium",lvl:"lc30",co:["Salesforce"],ev:[["LC 30-day: Salesforce"]]},
+ {g:"1d",n:509,t:"Fibonacci Number",s:"fibonacci-number",d:"Easy",lvl:"lc30",co:["Amazon","Bloomberg","Meta"],ev:[["LC 30-day: Amazon, Bloomberg, Meta"]]},
+ {g:"1d",n:213,t:"House Robber II",s:"house-robber-ii",d:"Medium",lvl:"lc3m",co:["Google","Bloomberg"],ev:[["LC 3-month: Google, Bloomberg"]]},
+ {g:"1d",n:152,t:"Maximum Product Subarray",s:"maximum-product-subarray",d:"Medium",lvl:"lc3m",co:["Google","Amazon","Bloomberg","Meta"],ev:[["LC 3-month: Google, Amazon, Bloomberg, Meta"]]},
+ {g:"1d",n:279,t:"Perfect Squares",s:"perfect-squares",d:"Medium",lvl:"lc3m",co:["Bloomberg","Meta","Microsoft"],ev:[["LC 3-month: Bloomberg, Meta, Microsoft"]]},
+
+ // ---------- 2D ----------
+ {g:"2d",n:474,t:"Ones and Zeroes",s:"ones-and-zeroes",d:"Medium",lvl:"cross",co:["Amazon"],
+  ev:[["LC 30-day: Amazon"],LD.amzPV,["PracHub · Amazon Frontend/SDE-I tech screen, 15 Sep 2026",PH("maximize-the-number-of-binary-strings-chosen-under-zero-and-one-budgets")]],note:"Three independent sources. 0/1 knapsack with two capacities."},
+ {g:"2d",n:97,t:"Interleaving String",s:"interleaving-string",d:"Medium",lvl:"cross",co:["Amazon","Google"],
+  ev:[["LC 30-day: Amazon · 3-month: Google"],["PracHub · Amazon OA, 30 Sep 2026 (weighted variant: minimise priority conflicts)",PH("minimum-priority-conflicts-when-interleaving-two-lowercase-strings")]],note:"Amazon's OA version adds a cost per step on the same (i, j) grid."},
+ {g:"2d",n:123,t:"Best Time to Buy and Sell Stock III",s:"best-time-to-buy-and-sell-stock-iii",d:"Hard",lvl:"cross",co:["Amazon","Google"],
+  ev:[["LC 3-month: Google · IV (188) 3-month: Google, Amazon"],LD.amzSde1],note:"State machine over (day, transactions left, holding)."},
+ {g:"2d",n:1494,t:"Parallel Courses II",s:"parallel-courses-ii",d:"Hard",lvl:"cross",co:["Amazon"],
+  ev:[["LC 3-month: Amazon"],LD.amzSde2Aug],note:"Bitmask DP. The candidate tried greedy and was rejected."},
+ {g:"2d",n:1216,t:"Valid Palindrome III",s:"valid-palindrome-iii",d:"Hard",prem:true,lvl:"rep",co:["Meta"],
+  ev:[["PracHub · Meta SWE, 3 Aug 2026",PH("check-whether-deleting-at-most-k-characters-can-form-a-palindrome")],["PracHub · Meta SWE, 8 Aug 2026 (second report)",PH("make-a-string-palindromic-with-at-most-k-deletions")]],note:"Premium. Free alternative: 516 Longest Palindromic Subsequence, then check n − LPS ≤ k."},
+ {g:"2d",n:256,t:"Paint House",s:"paint-house",d:"Medium",prem:true,lvl:"rep",co:["OpenAI"],
+  ev:[["PracHub · OpenAI new-grad tech screen, 6 Oct 2026",PH("cheapest-daily-shirt-colors-with-no-color-repeated-on-consecutive-days")]],note:"OpenAI also wanted the colour sequence returned, so keep parent pointers. Premium; the free version is GfG 'Ninja's Training'."},
+ {g:"2d",n:1434,t:"Number of Ways to Wear Different Hats to Each Other",s:"number-of-ways-to-wear-different-hats-to-each-other",d:"Hard",lvl:"rep",co:["Roblox"],
+  ev:[["PracHub · Roblox SWE, 20 Sep 2026",PH("count-distinct-hat-assignments-and-maximize-hat-points")]],note:"Bitmask over people, iterating hats."},
+ {g:"2d",n:5,t:"Longest Palindromic Substring",s:"longest-palindromic-substring",d:"Medium",lvl:"lc30",co:["Google","Amazon","Bloomberg","Meta","Microsoft"],ev:[["LC 30-day: Google, Amazon, Bloomberg, Meta, Microsoft"]]},
+ {g:"2d",n:410,t:"Split Array Largest Sum",s:"split-array-largest-sum",d:"Hard",lvl:"lc30",co:["Google","Amazon","Bloomberg","Pinterest","Snap"],ev:[["LC 30-day: Google, Amazon, Bloomberg, Pinterest, Snap"]],note:"Partition DP (i, k). Binary search on the answer also works."},
+ {g:"2d",n:486,t:"Predict the Winner",s:"predict-the-winner",d:"Medium",lvl:"lc30",co:["Google","Amazon","Meta","PhonePe"],ev:[["LC 30-day: Google, Amazon, Meta, PhonePe"]],note:"Interval game DP."},
+ {g:"2d",n:877,t:"Stone Game",s:"stone-game",d:"Medium",lvl:"lc30",co:["Google","Meta","Microsoft"],ev:[["LC 30-day: Google, Meta, Microsoft"]]},
+ {g:"2d",n:1140,t:"Stone Game II",s:"stone-game-ii",d:"Medium",lvl:"lc30",co:["Google","Amazon"],ev:[["LC 30-day: Google, Amazon"]]},
+ {g:"2d",n:1406,t:"Stone Game III",s:"stone-game-iii",d:"Hard",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"2d",n:1510,t:"Stone Game IV",s:"stone-game-iv",d:"Hard",lvl:"lc30",co:["Bloomberg"],ev:[["LC 30-day: Bloomberg"]]},
+ {g:"2d",n:416,t:"Partition Equal Subset Sum",s:"partition-equal-subset-sum",d:"Medium",lvl:"lc30",co:["Google","Amazon"],ev:[["LC 30-day: Google, Amazon"]]},
+ {g:"2d",n:2035,t:"Partition Array Into Two Arrays to Minimize Sum Difference",s:"partition-array-into-two-arrays-to-minimize-sum-difference",d:"Hard",lvl:"lc30",co:["Google","Arcesium"],ev:[["LC 30-day: Google, Arcesium"]],note:"Meet-in-the-middle. The subset-sum DP fails on negative numbers."},
+ {g:"2d",n:131,t:"Palindrome Partitioning",s:"palindrome-partitioning",d:"Medium",lvl:"lc30",co:["Google","Amazon"],ev:[["LC 30-day: Google, Amazon"]],note:"Also try 132 Palindrome Partitioning II (3-month: Google, Amazon)."},
+ {g:"2d",n:44,t:"Wildcard Matching",s:"wildcard-matching",d:"Hard",lvl:"lc30",co:["Amazon","Microsoft"],ev:[["LC 30-day: Amazon, Microsoft"]]},
+ {g:"2d",n:10,t:"Regular Expression Matching",s:"regular-expression-matching",d:"Hard",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"2d",n:1143,t:"Longest Common Subsequence",s:"longest-common-subsequence",d:"Medium",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"2d",n:516,t:"Longest Palindromic Subsequence",s:"longest-palindromic-subsequence",d:"Medium",lvl:"lc30",co:["Goldman Sachs"],ev:[["LC 30-day: Goldman Sachs"]]},
+ {g:"2d",n:518,t:"Coin Change II",s:"coin-change-ii",d:"Medium",lvl:"lc30",co:["Mastercard"],ev:[["LC 30-day: Mastercard"]]},
+ {g:"2d",n:312,t:"Burst Balloons",s:"burst-balloons",d:"Hard",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"2d",n:1335,t:"Minimum Difficulty of a Job Schedule",s:"minimum-difficulty-of-a-job-schedule",d:"Hard",lvl:"lc30",co:["Amazon","Atlassian"],ev:[["LC 30-day: Amazon, Atlassian"]]},
+ {g:"2d",n:664,t:"Strange Printer",s:"strange-printer",d:"Hard",lvl:"lc30",co:["Mastercard"],ev:[["LC 30-day: Mastercard"]]},
+ {g:"2d",n:1928,t:"Minimum Cost to Reach Destination in Time",s:"minimum-cost-to-reach-destination-in-time",d:"Hard",lvl:"lc30",co:["PhonePe"],ev:[["LC 30-day: PhonePe"]],note:"DP over (time, city)."},
+ {g:"2d",n:465,t:"Optimal Account Balancing",s:"optimal-account-balancing",d:"Hard",prem:true,lvl:"lc30",co:["Pinterest","Salesforce"],ev:[["LC 30-day: Pinterest, Salesforce"]],note:"Bitmask DP / backtracking."},
+ {g:"2d",n:72,t:"Edit Distance",s:"edit-distance",d:"Medium",lvl:"lc3m",co:["Google","Amazon","Apple"],ev:[["LC 3-month: Google, Amazon, Apple"],["PracHub · Amazon, 15 Jul 2026 (one day before your window)","https://prachub.com/companies/amazon/categories/coding-and-algorithms?page=2"]]},
+ {g:"2d",n:494,t:"Target Sum",s:"target-sum",d:"Medium",lvl:"lc3m",co:["Google","Amazon","Bloomberg"],ev:[["LC 3-month: Google, Amazon, Bloomberg"]]},
+
+ // ---------- Grid fixed/fixed ----------
+ {g:"ff",n:62,t:"Unique Paths",s:"unique-paths",d:"Medium",lvl:"cross",co:["Google","Amazon"],
+  ev:[["LC 30-day: Google, Amazon"],["PracHub · Google SWE onsite, 16 Sep 2026 (up-right / right / down-right moves through ordered checkpoints)",PH("count-up-right-right-down-right-grid-paths-through-ordered-checkpoints")]],note:"Google's version has no exact LeetCode problem. Solve 62, then redo it with 3 moves, column by column, using O(rows) memory."},
+ {g:"ff",n:63,t:"Unique Paths II",s:"unique-paths-ii",d:"Medium",lvl:"lc30",co:["Google"],ev:[["LC 30-day: Google"]]},
+ {g:"ff",n:174,t:"Dungeon Game",s:"dungeon-game",d:"Hard",lvl:"lc30",co:["Google","Intuit"],ev:[["LC 30-day: Google, Intuit"]],note:"Fill from the target cell back toward the start."},
+ {g:"ff",n:741,t:"Cherry Pickup",s:"cherry-pickup",d:"Hard",lvl:"lc30",co:["InMobi"],ev:[["LC 30-day: InMobi"]],note:"Two walkers moving in step, so the DP is 3D."},
+ {g:"ff",n:64,t:"Minimum Path Sum",s:"minimum-path-sum",d:"Medium",lvl:"lc3m",co:["Google","Amazon","Goldman Sachs"],ev:[["LC 3-month: Google, Amazon, Goldman Sachs"]]},
+ {g:"ff",n:1301,t:"Number of Paths with Max Score",s:"number-of-paths-with-max-score",d:"Hard",lvl:"lc3m",co:["Google","Bloomberg"],ev:[["LC 3-month: Google, Bloomberg"]]},
+
+ // ---------- Variable base, fixed end ----------
+ {g:"vf",n:120,t:"Triangle",s:"triangle",d:"Medium",lvl:"lc3m",co:["Bloomberg","Meta"],ev:[["LC 3-month: Bloomberg, Meta"]],note:"Base case is the whole bottom row and the answer is dp[0][0]. This is the textbook example of the pattern."},
+ {g:"vf",n:1463,t:"Cherry Pickup II",s:"cherry-pickup-ii",d:"Hard",lvl:"lc3m",co:["Amazon"],ev:[["LC 3-month: Amazon"]],note:"3D DP (row, c1, c2). Base case is the last row for every pair of columns, and the answer is dp[0][0][m−1]."},
+
+ // ---------- Variable base, variable end ----------
+ {g:"vv",n:2304,t:"Minimum Path Cost in a Grid",s:"minimum-path-cost-in-a-grid",d:"Medium",lvl:"rep",co:["Google"],
+  ev:[["PracHub · Google SWE onsite (L5), 17 Jul 2026 (top-to-bottom paths from multiple start cells: reachability, then min cost)",PHI("find-paths-across-a-weighted-binary-grid")]],note:"Closest LeetCode match: start anywhere in row 0 and end anywhere in the last row. Google's version adds blocked cells."},
+ {g:"vv",n:562,t:"Longest Line of Consecutive One in Matrix",s:"longest-line-of-consecutive-one-in-matrix",d:"Medium",prem:true,lvl:"rep",co:["Google"],
+  ev:[["PracHub · Google SWE technical screen, 23 Aug 2026 (any colour, 4 directions)",PH("find-the-longest-straight-run-of-one-color")]],note:"Premium. Google generalised it from 1s to letter colours. Keep one dp table per direction."},
+ {g:"vv",n:931,t:"Minimum Falling Path Sum",s:"minimum-falling-path-sum",d:"Medium",lvl:"lc3m",co:["Google"],ev:[["LC 3-month: Google"]],note:"Base case is the whole first row and the answer is the min over the last row. Follow with 1289 Falling Path Sum II."},
+ {g:"vv",n:null,t:"Length of Longest V-Shaped Diagonal Segment",s:"length-of-longest-v-shaped-diagonal-segment",d:"Hard",lvl:"lc3m",co:["Amazon"],ev:[["LC 3-month: Amazon"]]},
+ {g:"vv",n:329,t:"Longest Increasing Path in a Matrix",s:"longest-increasing-path-in-a-matrix",d:"Hard",lvl:"lc3m",co:["Google"],ev:[["LC 3-month: Google"]],note:"Memoised DFS from every cell."},
+ {g:"vv",n:221,t:"Maximal Square",s:"maximal-square",d:"Medium",lvl:"lc3m",co:["Google","eBay"],ev:[["LC 3-month: Google, eBay"]]},
+ {g:"vv",n:85,t:"Maximal Rectangle",s:"maximal-rectangle",d:"Hard",lvl:"lc3m",co:["Google","Amazon","Bloomberg","Microsoft"],ev:[["LC 3-month: Google, Amazon, Bloomberg, Microsoft"]]},
+
+ // ---------- Other ----------
+ {g:"ot",n:124,t:"Binary Tree Maximum Path Sum",s:"binary-tree-maximum-path-sum",d:"Hard",lvl:"lc30",co:["Amazon","Goldman Sachs"],ev:[["LC 30-day: Amazon, Goldman Sachs"]]},
+ {g:"ot",n:337,t:"House Robber III",s:"house-robber-iii",d:"Medium",lvl:"lc30",co:["Amazon"],ev:[["LC 30-day: Amazon"]]},
+ {g:"ot",n:2858,t:"Minimum Edge Reversals So Every Node Is Reachable",s:"minimum-edge-reversals-so-every-node-is-reachable",d:"Hard",lvl:"lc30",co:["Microsoft"],ev:[["LC 30-day: Microsoft"]],note:"Rerooting DP."},
+ {g:"ot",n:null,t:"Maximize Sum of Weights after Edge Removals",s:"maximize-sum-of-weights-after-edge-removals",d:"Hard",lvl:"lc30",co:["LinkedIn","Uber"],ev:[["LC 30-day: LinkedIn, Uber"]]},
+];
+const LVL = {cross:["Cross-verified","v-cross",0],lc30:["LC 30-day","v-lc30",1],rep:["Interview report","v-rep",2],lc3m:["LC 3-month","v-lc3m",3]};
+const DORD = {Hard:0,Medium:1,Easy:2};
+let solved = {};
+try { solved = JSON.parse(localStorage.getItem("dpLedgerSolved") || "{}") || {}; } catch(e) { solved = {}; }
+const save = () => { try { localStorage.setItem("dpLedgerSolved", JSON.stringify(solved)); } catch(e) {} };
+let state = {tab:"all"};
+try { state.tab = localStorage.getItem("dpLedgerTab") || "all"; } catch(e) {}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $ = id => document.getElementById(id);
+
+function renderStats(){
+  const cross = P.filter(p=>p.lvl==="cross").length;
+  const comps = new Set(P.flatMap(p=>p.co)).size;
+  const done = P.filter(p=>solved[p.s]).length;
+  $("stats").innerHTML = [
+    [P.length,"problems listed"],[cross,"cross-verified"],[comps,"companies"],[done+" / "+P.length,"solved by you"]
+  ].map(([b,s])=>`<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+}
+function renderTabs(){
+  const tabs = [{id:"all",name:"All"}].concat(GROUPS);
+  $("tabs").innerHTML = tabs.map(t=>{
+    const c = t.id==="all"?P.length:P.filter(p=>p.g===t.id).length;
+    return `<button class="tab" type="button" data-t="${t.id}" aria-pressed="${state.tab===t.id}">${esc(t.name)} · ${c}</button>`;
+  }).join("");
+  $("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{state.tab=b.dataset.t;try{localStorage.setItem("dpLedgerTab",state.tab)}catch(e){};renderTabs();render();});
+}
+function fillCompanies(){
+  const counts = {};
+  P.forEach(p=>p.co.forEach(c=>counts[c]=(counts[c]||0)+1));
+  $("co").innerHTML += Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b)).map(c=>`<option value="${esc(c)}">${esc(c)} (${counts[c]})</option>`).join("");
+}
+function row(p){
+  const [lab,cls] = LVL[p.lvl];
+  const ev = p.ev.map(e=> e[1] ? `<li><a href="${e[1]}" target="_blank" rel="noopener">${esc(e[0])}</a></li>` : `<li>${esc(e[0])}</li>`).join("");
+  return `<div class="row${solved[p.s]?" done":""}">
+    <input type="checkbox" id="cb-${p.s}" data-s="${p.s}" ${solved[p.s]?"checked":""} aria-label="Mark ${esc(p.t)} solved">
+    <div class="title"><a href="${LC(p.s)}" target="_blank" rel="noopener">${p.n?`<span class="num">${p.n}.</span>`:""}${esc(p.t)}</a>${p.prem?'<span><span class="prem">PREMIUM</span></span>':""}${p.note?`<span class="note">${esc(p.note)}</span>`:""}</div>
+    <div class="diff d-${p.d}">${p.d}</div>
+    <div class="cos">${p.co.map(esc).join(", ")}</div>
+    <div class="ev"><span><span class="chip ${cls}">${lab}</span></span><ul>${ev}</ul></div>
+  </div>`;
+}
+function render(){
+  const q = $("q").value.trim().toLowerCase(), lvl = $("lvl").value, co = $("co").value, hide = $("hide").checked;
+  const groups = state.tab==="all" ? GROUPS : GROUPS.filter(g=>g.id===state.tab);
+  $("groups").innerHTML = groups.map(g=>{
+    const items = P.filter(p=>p.g===g.id)
+      .filter(p=>!q || (p.t+" "+p.co.join(" ")+" "+(p.n||"")).toLowerCase().includes(q))
+      .filter(p=>!lvl || (lvl==="cross"?p.lvl==="cross":p.lvl!=="lc3m"))
+      .filter(p=>!co || p.co.includes(co))
+      .filter(p=>!hide || !solved[p.s])
+      .sort((a,b)=>LVL[a.lvl][2]-LVL[b.lvl][2] || b.co.length-a.co.length || DORD[a.d]-DORD[b.d]);
+    const body = items.length ? items.map(row).join("") : `<div class="empty">No problems match these filters.</div>`;
+    return `<section class="group"><div class="ghead"><h2>${esc(g.name)}</h2><p>${esc(g.blurb)}</p></div>
+      <div class="rows"><div class="row head"><span></span><span>Problem</span><span>Level</span><span>Companies</span><span>Evidence</span></div>${body}</div></section>`;
+  }).join("");
+  $("groups").querySelectorAll("input[type=checkbox]").forEach(cb=>cb.onchange=()=>{
+    if(cb.checked) solved[cb.dataset.s]=1; else delete solved[cb.dataset.s];
+    save(); renderStats(); render();
+  });
+}
+["q","lvl","co","hide"].forEach(id=>$(id).addEventListener("input",render));
+fillCompanies(); renderStats(); renderTabs(); render();
+</script>
+</body>
+</html>
